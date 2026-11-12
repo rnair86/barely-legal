@@ -18,7 +18,7 @@ Provide a simple website that:
 ## Project tracking
 
 - Jira: BL-1 — simple website describing the company
-- GitHub: [#1 — Add a README file](https://github.com/rnair86/bareley-legal/issues/1)
+- GitHub: [#1 — Add a README file](https://github.com/rnair86/barely-legal/issues/1)
 
 ## Getting started
 
