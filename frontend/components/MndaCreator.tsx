@@ -121,8 +121,12 @@ function download(filename: string, content: string, type: string) {
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;
+  // Some browsers (e.g. Safari) need the link in the DOM, and the URL must
+  // outlive the click so the download can start.
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export default function MndaCreator({ coverTemplate, termsTemplate }: Props) {
