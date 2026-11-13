@@ -1,25 +1,29 @@
 # Barely Legal
 
-> **Status: 🚧 In progress** — expected to be completed within a week (target: 2026-11-19).
+Platform for drafting legal agreements with AI. Current state: Mutual NDA creator (frontend) on a V1 foundation with a FastAPI backend and a temporary SQLite database.
 
-## About
+## Run
 
-Barely Legal is a company whose platform lets users draft legal agreements using AI.
+Requires Docker. App at http://localhost:8000.
 
-This repository will hold a simple website that describes the Barely Legal company and its platform.
+```bash
+scripts/start-mac.sh        # or start-linux.sh / start-windows.ps1
+scripts/stop-mac.sh         # or stop-linux.sh / stop-windows.ps1
+```
 
-## Goal
+The database is recreated on every container start.
 
-Provide a simple website that:
+## Layout
 
-- Describes the Barely Legal company
-- Explains that users can use the company's platform to draft legal agreements with AI
+- `frontend/` Next.js, statically exported and served by FastAPI
+- `backend/` FastAPI (uv project): `/api/health`, `/api/auth/signup`, `/api/auth/signin`
+- `templates/`, `catalog.json` legal document templates
 
-## Project tracking
+## Test
 
-- Jira: BL-1 — simple website describing the company
-- GitHub: [#1 — Add a README file](https://github.com/rnair86/barely-legal/issues/1)
+```bash
+cd backend && uv run pytest
+cd frontend && npm test
+```
 
-## Getting started
-
-Setup and usage instructions will be added as the website is built.
+Set `JWT_SECRET` in `.env` to override the dev default.
