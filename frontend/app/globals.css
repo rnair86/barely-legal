@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fafafa;
+  --foreground: #18181b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Rendered legal document (markdown output). */
+.doc {
+  color: #18181b;
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+.doc h1 { font-size: 1.5rem; font-weight: 700; margin: 0 0 1rem; }
+.doc h2 { font-size: 1.15rem; font-weight: 700; margin: 1.5rem 0 0.5rem; }
+.doc h3 { font-size: 1rem; font-weight: 600; margin: 1.25rem 0 0.25rem; }
+.doc p { margin: 0.5rem 0; }
+.doc em { color: #52525b; font-size: 0.85em; }
+.doc a { text-decoration: underline; }
+.doc ol { list-style: decimal; padding-left: 1.5rem; margin: 0.5rem 0; }
+.doc ol > li { margin: 0.75rem 0; padding-left: 0.25rem; }
+.doc ul { padding-left: 1.25rem; margin: 0.25rem 0; }
+.doc ul.contains-task-list { list-style: none; padding-left: 0; }
+.doc input[type="checkbox"] { margin-right: 0.5rem; }
+.doc table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+.doc th, .doc td { border: 1px solid #d4d4d8; padding: 0.5rem; vertical-align: top; }
+.doc tr:nth-child(2) td:not(:first-child), .doc td:empty { height: 2.5rem; }
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+  .doc { border: 0; box-shadow: none; padding: 0; }
+  .print-break { break-before: page; }
+}
