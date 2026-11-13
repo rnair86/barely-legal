@@ -1,13 +1,15 @@
 """Password hashing (argon2) and JWT helpers."""
 
 import os
+import secrets
 from datetime import datetime, timedelta, timezone
 
 import jwt
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
-JWT_SECRET = os.environ.get("JWT_SECRET", "dev-secret-change-me-0123456789abcdef")
+# Random per-process secret if unset; fine since the DB (and users) reset on every start.
+JWT_SECRET = os.environ.get("JWT_SECRET") or secrets.token_hex(32)
 JWT_ALGORITHM = "HS256"
 TOKEN_TTL = timedelta(hours=24)
 

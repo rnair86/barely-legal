@@ -13,12 +13,17 @@ def client(tmp_path, monkeypatch):
         yield c
 
 
-def creds(email="a@example.com", password="pw12345"):
+def creds(email="a@example.com", password="password123"):
     return {"email": email, "password": password}
 
 
 def test_health(client):
     assert client.get("/api/health").json() == {"status": "ok"}
+
+
+@pytest.mark.parametrize("body", [creds(email=""), creds(email="notanemail"), creds(password="short")])
+def test_signup_rejects_invalid_input(client, body):
+    assert client.post("/api/auth/signup", json=body).status_code == 422
 
 
 def test_signup_returns_valid_token(client):
@@ -38,7 +43,7 @@ def test_password_is_stored_hashed(client):
     client.post("/api/auth/signup", json=creds())
     with db.connect() as conn:
         stored = conn.execute("SELECT password_hash FROM users").fetchone()[0]
-    assert stored != "pw12345" and stored.startswith("$argon2")
+    assert stored != "password123" and stored.startswith("$argon2")
 
 
 def test_signin_success(client):
@@ -47,7 +52,7 @@ def test_signin_success(client):
     assert r.status_code == 200 and "token" in r.json()
 
 
-@pytest.mark.parametrize("body", [creds(password="wrong"), creds(email="nobody@example.com")])
+@pytest.mark.parametrize("body", [creds(password="wrong-password"), creds(email="nobody@example.com")])
 def test_signin_bad_credentials(client, body):
     client.post("/api/auth/signup", json=creds())
     assert client.post("/api/auth/signin", json=body).status_code == 401

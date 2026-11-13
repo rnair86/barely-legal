@@ -9,7 +9,7 @@ RUN npm run build
 
 # Stage 2: FastAPI serves the API and the static frontend
 FROM python:3.12-slim
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.10.9 /uv /usr/local/bin/uv
 WORKDIR /app
 COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
