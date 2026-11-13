@@ -5,7 +5,7 @@ description: Use this to write code to call an LLM using LiteLLM and OpenRouter 
 
 # Calling an LLM via Cerebras
 
-These instructions allow you write code to call an LLM with Cerebras specified as the inference provider.  
+These instructions allow you to write code to call an LLM with Cerebras specified as the inference provider.  
 This method uses LiteLLM and OpenRouter.
 
 ## Setup
