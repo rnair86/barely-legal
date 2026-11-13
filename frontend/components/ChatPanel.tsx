@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { applyUpdates, type MndaUpdates, type MndaValues } from "@/lib/mnda";
+import { applyUpdates, type ChatTurn, type MndaValues } from "@/lib/mnda";
 
 interface Message {
   role: "user" | "assistant";
@@ -41,7 +41,7 @@ export default function ChatPanel({ values, onValues }: Props) {
         body: JSON.stringify({ messages: history.slice(1), values }),
       });
       if (!res.ok) throw new Error(`Chat failed (${res.status})`);
-      const data: { reply: string; updates: MndaUpdates } = await res.json();
+      const data: ChatTurn = await res.json();
       onValues(applyUpdates(values, data.updates));
       setMessages([...history, { role: "assistant", content: data.reply }]);
     } catch {

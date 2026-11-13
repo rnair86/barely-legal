@@ -1,10 +1,10 @@
 """AI chat that gathers Mutual NDA fields, via LiteLLM -> OpenRouter -> Cerebras."""
 
 from datetime import date
-from typing import Literal
+from typing import Annotated, Literal
 
 from litellm import completion
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 MODEL = "openrouter/openai/gpt-oss-120b"
 EXTRA_BODY = {"provider": {"order": ["cerebras"]}}
@@ -40,9 +40,35 @@ class ChatTurn(BaseModel):
     updates: MndaUpdates
 
 
+Text = Annotated[str, Field(max_length=2000)]
+
+
 class Message(BaseModel):
     role: Literal["user", "assistant"]
-    content: str
+    content: Annotated[str, Field(max_length=4000)]
+
+
+class PartyValues(BaseModel):
+    company: Text = ""
+    name: Text = ""
+    title: Text = ""
+    noticeAddress: Text = ""
+
+
+class MndaValues(BaseModel):
+    """Current document state sent by the client (typed so it is safe to put in the prompt)."""
+
+    purpose: Text = ""
+    effectiveDate: Annotated[str, Field(max_length=10)] = ""
+    mndaTerm: Literal["expires", "continues"] = "expires"
+    mndaTermYears: Annotated[int, Field(ge=1, le=100)] = 1
+    confidentiality: Literal["years", "perpetuity"] = "years"
+    confidentialityYears: Annotated[int, Field(ge=1, le=100)] = 1
+    governingLaw: Text = ""
+    jurisdiction: Text = ""
+    modifications: Text = ""
+    party1: PartyValues = PartyValues()
+    party2: PartyValues = PartyValues()
 
 
 SYSTEM_PROMPT = """You help a user draft a Mutual Non-Disclosure Agreement (Common Paper Mutual NDA) through friendly chat.
@@ -65,12 +91,12 @@ Rules:
   When everything is filled in, tell the user the document is ready to download.
 
 Today's date: {today}
-Current values: {values}
+Current values (JSON): {values}
 """
 
 
-def run_chat(messages: list[Message], values: dict) -> ChatTurn:
-    system = SYSTEM_PROMPT.format(today=date.today().isoformat(), values=values)
+def run_chat(messages: list[Message], values: MndaValues) -> ChatTurn:
+    system = SYSTEM_PROMPT.format(today=date.today().isoformat(), values=values.model_dump_json())
     response = completion(
         model=MODEL,
         messages=[{"role": "system", "content": system}, *[m.model_dump() for m in messages]],

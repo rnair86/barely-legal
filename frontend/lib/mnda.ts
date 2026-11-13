@@ -193,16 +193,24 @@ export type MndaUpdates = {
 } & { party1?: PartyUpdates | null; party2?: PartyUpdates | null };
 type PartyUpdates = { [K in keyof Party]?: string | null };
 
-const definedEntries = (obj: object) =>
-  Object.entries(obj).filter(([, v]) => v !== null && v !== undefined);
+/** Response of POST /api/chat. */
+export interface ChatTurn {
+  reply: string;
+  updates: MndaUpdates;
+}
+
+/** Overlay the non-null entries of `patch` onto `base`. */
+const merge = <T extends object>(base: T, patch: object = {}): T => ({
+  ...base,
+  ...Object.fromEntries(Object.entries(patch).filter(([, v]) => v != null)),
+});
 
 /** Merge the AI's updates into the current values, ignoring null fields. */
 export function applyUpdates(values: MndaValues, updates: MndaUpdates): MndaValues {
   const { party1, party2, ...rest } = updates;
   return {
-    ...values,
-    ...Object.fromEntries(definedEntries(rest)),
-    party1: { ...values.party1, ...Object.fromEntries(definedEntries(party1 ?? {})) },
-    party2: { ...values.party2, ...Object.fromEntries(definedEntries(party2 ?? {})) },
+    ...merge(values, rest),
+    party1: merge(values.party1, party1 ?? undefined),
+    party2: merge(values.party2, party2 ?? undefined),
   };
 }

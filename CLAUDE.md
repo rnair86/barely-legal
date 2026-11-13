@@ -66,7 +66,7 @@ Done (BL-4, PR #8):
 - Tests: `cd backend && uv run pytest`, `cd frontend && npm test`.
 
 Done (BL-5): AI chat for the Mutual NDA.
-- `POST /api/chat` (`backend/app/chat.py`): stateless; the client sends message history plus current field values, the backend calls `openrouter/openai/gpt-oss-120b` (Cerebras) via LiteLLM with Structured Outputs (`ChatTurn`: `reply` plus partial `updates`). LLM failure returns 502. Endpoint is not auth protected.
+- `POST /api/chat` (`backend/app/chat.py`): stateless; the client sends message history plus current field values, the backend calls `openrouter/openai/gpt-oss-120b` (Cerebras) via LiteLLM with Structured Outputs (`ChatTurn`: `reply` plus partial `updates`). LLM failure returns 502. Request size is capped and `values` is typed. Known risk: the endpoint is NOT auth protected, so anyone who can reach the server can spend the OpenRouter budget; add JWT auth together with the sign-in UI.
 - Frontend: `ChatPanel.tsx` replaces the form; `applyUpdates` in `lib/mnda.ts` merges updates into `MndaValues`; live preview and downloads unchanged.
 - Backend tests mock `run_chat`; one `live` test calls the real model (needs `OPENROUTER_API_KEY` in `.env`, skipped if absent). First request after container start can be slow because litellm loads on import.
 

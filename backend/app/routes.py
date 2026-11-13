@@ -1,3 +1,4 @@
+import logging
 import sqlite3
 
 from fastapi import APIRouter, HTTPException
@@ -52,13 +53,14 @@ def signin(creds: Credentials) -> TokenResponse:
 
 
 class ChatRequest(BaseModel):
-    messages: list[chat.Message] = Field(min_length=1)
-    values: dict
+    messages: list[chat.Message] = Field(min_length=1, max_length=50)
+    values: chat.MndaValues
 
 
 @router.post("/chat")
 def chat_turn(req: ChatRequest) -> chat.ChatTurn:
     try:
         return chat.run_chat(req.messages, req.values)
-    except Exception:
-        raise HTTPException(502, "The AI service failed. Please try again.")
+    except Exception as e:
+        logging.exception("Chat LLM call failed")
+        raise HTTPException(502, "The AI service failed. Please try again.") from e
