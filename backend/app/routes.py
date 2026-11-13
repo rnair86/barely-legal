@@ -1,9 +1,10 @@
+import logging
 import sqlite3
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
-from . import auth, db
+from . import auth, chat, db
 
 router = APIRouter(prefix="/api")
 
@@ -49,3 +50,17 @@ def signin(creds: Credentials) -> TokenResponse:
     if row is None or not auth.verify_password(row["password_hash"], creds.password):
         raise HTTPException(401, "Invalid email or password")
     return TokenResponse(token=auth.create_token(row["id"], email))
+
+
+class ChatRequest(BaseModel):
+    messages: list[chat.Message] = Field(min_length=1, max_length=50)
+    values: chat.MndaValues
+
+
+@router.post("/chat")
+def chat_turn(req: ChatRequest) -> chat.ChatTurn:
+    try:
+        return chat.run_chat(req.messages, req.values)
+    except Exception as e:
+        logging.exception("Chat LLM call failed")
+        raise HTTPException(502, "The AI service failed. Please try again.") from e

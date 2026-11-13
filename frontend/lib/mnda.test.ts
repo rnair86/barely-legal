@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  applyUpdates,
   buildDocument,
   defaultValues,
   formatDate,
@@ -136,5 +137,35 @@ describe("renderStandardTerms / buildDocument", () => {
       doc.indexOf("# Standard Terms"),
     );
     expect(doc.endsWith("\n")).toBe(true);
+  });
+});
+
+describe("applyUpdates", () => {
+  it("applies set fields and ignores null or missing ones", () => {
+    const base = filled();
+    const out = applyUpdates(base, {
+      governingLaw: "California",
+      jurisdiction: null,
+      mndaTerm: "continues",
+    });
+    expect(out.governingLaw).toBe("California");
+    expect(out.mndaTerm).toBe("continues");
+    expect(out.jurisdiction).toBe(base.jurisdiction);
+    expect(out.purpose).toBe(base.purpose);
+  });
+
+  it("merges party fields without clearing the others", () => {
+    const base = filled();
+    const out = applyUpdates(base, { party1: { company: "NewCo", title: null } });
+    expect(out.party1.company).toBe("NewCo");
+    expect(out.party1.title).toBe(base.party1.title);
+    expect(out.party1.name).toBe(base.party1.name);
+    expect(out.party2).toEqual(base.party2);
+  });
+
+  it("does not mutate its input", () => {
+    const base = filled();
+    applyUpdates(base, { party1: { company: "NewCo" } });
+    expect(base.party1.company).toBe("Acme Inc.");
   });
 });

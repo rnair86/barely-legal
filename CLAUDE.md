@@ -8,17 +8,17 @@ The available documents are covered in the catalog.json file in the project root
 
 @catalog.json
 
-Before we start: the initial implementation is a frontend-only prototype that only supports Mutual NDA document with no AI chat
+Current state: a V1 technical foundation (see Implementation status below). Product features are Mutual NDA only, driven by an AI chat.
 
 ## Development process
 
 When instructed to build a feature:
 1. Use your Atlassian tools to read the feature instructions from Jira
-2. When working on a Jira ticket, Move the ticket to In-Progress
-2. Develop the feature - do not skip any step from the feature-dev 7 step process
-3. Thoroughly test the feature with unit tests and integration tests and fix any issues
-4. Submit a PR using your github tools
-5. Once the PR is merged move the ticket to DONE and add a brief description of what was done on the ticket 
+2. When working on a Jira ticket, move the ticket to In Progress
+3. Develop the feature - do not skip any step from the feature-dev 7 step process
+4. Thoroughly test the feature with unit tests and integration tests and fix any issues
+5. Submit a PR using your github tools
+6. Once the PR is merged move the ticket to Done and add a brief description of what was done on the ticket
 
 ## AI design
 
@@ -32,7 +32,7 @@ The entire project should be packaged into a Docker container.
 The backend should be in backend/ and be a uv project, using FastAPI.  
 The frontend should be in frontend/  
 The database should use SQLLite and be created from scratch each time the Docker container is brought up, allowing for a users table with sign up and sign in.  
-Consider statically building the frontend and serving it via FastAPI, if that will work.  
+The frontend is statically built and served via FastAPI.  
 There should be scripts in scripts/ for:  
 ```bash
 # Mac
@@ -55,3 +55,19 @@ Backend available at http://localhost:8000
 - Purple Secondary: `#753991` (submit buttons)
 - Dark Navy: `#032147` (headings)
 - Gray Text: `#888888`
+
+## Implementation status
+
+Done (BL-4, PR #8):
+- `backend/`: uv + FastAPI (`app/main.py`, `routes.py`, `auth.py`, `db.py`). Endpoints: `GET /api/health`, `POST /api/auth/signup`, `POST /api/auth/signin` (argon2 hashing, JWT, email normalised, password min 8 chars). Set `JWT_SECRET` in `.env`, otherwise a random secret is used per start.
+- SQLite `users` table at `/tmp/app.db` (`DB_PATH`), deleted and recreated on every startup.
+- `frontend/`: Next.js with `output: "export"` (so `cacheComponents` and `partialPrefetching` are disabled). Templates are read from `templates/` at build time. FastAPI serves `frontend/out` from `/app/static`.
+- `Dockerfile` (multi-stage, build context is the repo root), `docker-compose.yml`, `scripts/` start and stop for mac, linux, windows. Mac and linux scripts are untested.
+- Tests: `cd backend && uv run pytest`, `cd frontend && npm test`.
+
+Done (BL-5): AI chat for the Mutual NDA.
+- `POST /api/chat` (`backend/app/chat.py`): stateless; the client sends message history plus current field values, the backend calls `openrouter/openai/gpt-oss-120b` (Cerebras) via LiteLLM with Structured Outputs (`ChatTurn`: `reply` plus partial `updates`). LLM failure returns 502. Request size is capped and `values` is typed. Known risk: the endpoint is NOT auth protected, so anyone who can reach the server can spend the OpenRouter budget; add JWT auth together with the sign-in UI.
+- Frontend: `ChatPanel.tsx` replaces the form; `applyUpdates` in `lib/mnda.ts` merges updates into `MndaValues`; live preview and downloads unchanged.
+- Backend tests mock `run_chat`; one `live` test calls the real model (needs `OPENROUTER_API_KEY` in `.env`, skipped if absent). First request after container start can be slow because litellm loads on import.
+
+Not done: sign-in/sign-up UI, protected endpoints, documents other than Mutual NDA.

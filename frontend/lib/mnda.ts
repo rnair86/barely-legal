@@ -186,3 +186,31 @@ export function buildDocument(
 ): string {
   return `${renderCoverPage(coverTemplate, v).trimEnd()}\n\n${renderStandardTerms(termsTemplate).trimEnd()}\n`;
 }
+
+/** Fields the AI changed in one turn; null or missing means "unchanged". */
+export type MndaUpdates = {
+  [K in keyof Omit<MndaValues, "party1" | "party2">]?: MndaValues[K] | null;
+} & { party1?: PartyUpdates | null; party2?: PartyUpdates | null };
+type PartyUpdates = { [K in keyof Party]?: string | null };
+
+/** Response of POST /api/chat. */
+export interface ChatTurn {
+  reply: string;
+  updates: MndaUpdates;
+}
+
+/** Overlay the non-null entries of `patch` onto `base`. */
+const merge = <T extends object>(base: T, patch: object = {}): T => ({
+  ...base,
+  ...Object.fromEntries(Object.entries(patch).filter(([, v]) => v != null)),
+});
+
+/** Merge the AI's updates into the current values, ignoring null fields. */
+export function applyUpdates(values: MndaValues, updates: MndaUpdates): MndaValues {
+  const { party1, party2, ...rest } = updates;
+  return {
+    ...merge(values, rest),
+    party1: merge(values.party1, party1 ?? undefined),
+    party2: merge(values.party2, party2 ?? undefined),
+  };
+}
