@@ -5,6 +5,7 @@ requires-python = ">=3.12"
 dependencies = [
     "argon2-cffi>=25.1.0",
     "fastapi>=0.162.7",
+    "litellm>=1.109.1",
     "pyjwt>=2.15.1",
     "uvicorn[standard]>=0.54.0",
 ]
@@ -17,3 +18,4 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+markers = ["live: calls the real LLM"]

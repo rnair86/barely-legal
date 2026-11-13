@@ -186,3 +186,23 @@ export function buildDocument(
 ): string {
   return `${renderCoverPage(coverTemplate, v).trimEnd()}\n\n${renderStandardTerms(termsTemplate).trimEnd()}\n`;
 }
+
+/** Fields the AI changed in one turn; null or missing means "unchanged". */
+export type MndaUpdates = {
+  [K in keyof Omit<MndaValues, "party1" | "party2">]?: MndaValues[K] | null;
+} & { party1?: PartyUpdates | null; party2?: PartyUpdates | null };
+type PartyUpdates = { [K in keyof Party]?: string | null };
+
+const definedEntries = (obj: object) =>
+  Object.entries(obj).filter(([, v]) => v !== null && v !== undefined);
+
+/** Merge the AI's updates into the current values, ignoring null fields. */
+export function applyUpdates(values: MndaValues, updates: MndaUpdates): MndaValues {
+  const { party1, party2, ...rest } = updates;
+  return {
+    ...values,
+    ...Object.fromEntries(definedEntries(rest)),
+    party1: { ...values.party1, ...Object.fromEntries(definedEntries(party1 ?? {})) },
+    party2: { ...values.party2, ...Object.fromEntries(definedEntries(party2 ?? {})) },
+  };
+}
