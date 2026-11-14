@@ -43,7 +43,7 @@ export default function AuthForm({ mode }: { mode: "signin" | "signup" }) {
   return (
     <main className="flex flex-1 items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
-        <h1 className="text-center text-3xl font-semibold text-[#032147]">Prelegal</h1>
+        <h1 className="text-center text-3xl font-semibold text-[#032147]">Barely Legal</h1>
         <p className="mt-1 text-center text-sm text-[#888888]">Draft legal agreements by chatting with an AI.</p>
         <form onSubmit={submit} className="mt-8 space-y-4 rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-[#032147]">{signup ? "Create your account" : "Sign in"}</h2>

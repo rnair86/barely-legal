@@ -30,7 +30,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <header className="no-print border-b border-zinc-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
           <Link href="/dashboard/" className="text-lg font-semibold text-[#032147]">
-            Prelegal
+            Barely Legal
           </Link>
           <nav className="flex items-center gap-4 text-sm">
             <Link href="/dashboard/" className="text-zinc-700 hover:text-[#209dd7]">
