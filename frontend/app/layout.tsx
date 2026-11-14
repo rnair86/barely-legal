@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Prelegal",
+  title: "Barely Legal",
   description: "Draft a legal agreement by chatting with an AI, then download it.",
 };
 

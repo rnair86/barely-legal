@@ -1,4 +1,4 @@
-# Prelegal Project
+# Barely Legal Project
 
 ## Overview
 
