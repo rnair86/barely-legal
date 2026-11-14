@@ -37,11 +37,17 @@ export function localToday(now = new Date()): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-/** Merge one chat turn's field updates into the state (the document itself is fetched separately). */
+/**
+ * Merge one chat turn's field updates into the state. `state.doc` must already be the
+ * document the turn applies to; term names are trimmed and ones it does not have are
+ * ignored, since they could never be shown.
+ */
 export function applyTurn(state: DocState, turn: ChatTurn): DocState {
+  const known = new Set(state.doc?.terms);
   const terms = { ...state.terms };
   for (const { term, value } of turn.termUpdates) {
-    if (value.trim()) terms[term] = value.trim();
+    const name = term.trim();
+    if (known.has(name) && value.trim()) terms[name] = value.trim();
   }
   return { ...state, values: applyUpdates(state.values, turn.updates), terms };
 }

@@ -54,7 +54,7 @@ export default function ChatPanel({ state, onState }: Props) {
         if (!docRes.ok) throw new Error(`Document load failed (${docRes.status})`);
         doc = (await docRes.json()) as Doc;
       }
-      onState({ ...applyTurn(state, data), doc });
+      onState(applyTurn({ ...state, doc }, data));
       setMessages([...history, { role: "assistant", content: data.reply }]);
     } catch {
       setMessages([

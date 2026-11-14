@@ -44,6 +44,31 @@ describe("applyTurn", () => {
     expect(out.terms).toEqual({ Fees: "$5", Provider: "Acme" });
   });
 
+  it("trims term names so a padded name still lands on the right row", () => {
+    const out = applyTurn(state(), turn({ termUpdates: [{ term: "  Provider\n", value: "Acme" }] }));
+    expect(out.terms).toEqual({ Provider: "Acme" });
+  });
+
+  it("ignores empty or unknown term names, which could never be shown", () => {
+    const out = applyTurn(
+      state(),
+      turn({
+        termUpdates: [
+          { term: "", value: "x" },
+          { term: "   ", value: "x" },
+          { term: "Target Uptime", value: "99.9%" },
+          { term: "provider", value: "wrong case" },
+        ],
+      }),
+    );
+    expect(out.terms).toEqual({});
+  });
+
+  it("ignores term updates when no document is selected", () => {
+    const out = applyTurn({ ...state(), doc: null }, turn({ termUpdates: [{ term: "Provider", value: "Acme" }] }));
+    expect(out.terms).toEqual({});
+  });
+
   it("applies NDA updates and keeps the document", () => {
     const out = applyTurn(state(), turn({ updates: { governingLaw: "Delaware" } }));
     expect(out.values.governingLaw).toBe("Delaware");

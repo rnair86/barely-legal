@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 from dotenv import load_dotenv
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 from app import chat, db
 from app.chat import ChatTurn, Message, MndaUpdates, MndaValues, PartyUpdate, TermUpdate, build_system_prompt
@@ -109,10 +110,39 @@ def test_chat_returns_document_and_term_updates(client, monkeypatch):
 def test_prompt_includes_catalog_and_selected_document_terms():
     none_yet = build_system_prompt(None, MndaValues(), {}, "2026-11-13")
     assert "csa:" in none_yet and "mutual-nda:" in none_yet and "none yet" in none_yet
-    csa = build_system_prompt("csa", MndaValues(), {"Fees": "$5"}, "2026-11-13")
-    assert "Subscription Period" in csa and '"Fees": "$5"' in csa
+    csa = build_system_prompt("csa", MndaValues(), {"Governing Law": "Texas"}, "2026-11-13")
+    assert "Subscription Period" in csa and '"Governing Law": "Texas"' in csa
     nda = build_system_prompt("mutual-nda", MndaValues(purpose="p"), {}, "2026-11-13")
     assert "governingLaw" in nda and '"purpose":"p"' in nda
+
+
+def test_prompt_drops_terms_from_other_documents():
+    # "Target Uptime" belongs to the SLA, not the CSA; "Provider" is shared.
+    terms = {"Provider": "Acme", "Target Uptime": "99.9%"}
+    csa = build_system_prompt("csa", MndaValues(), terms, "2026-11-13")
+    assert csa.endswith('Current values (JSON): {"Provider": "Acme"}\n')
+    nda = build_system_prompt("mutual-nda", MndaValues(), terms, "2026-11-13")
+    assert "Acme" not in nda
+
+
+@pytest.mark.parametrize(
+    "turn",
+    [
+        {"updates": {"purpose": "x" * 2001}},
+        {"updates": {"party1": {"company": "x" * 2001}}},
+        {"updates": {"effectiveDate": "2026-11-13T00:00:00"}},
+        {"updates": {"mndaTermYears": 0}},
+        {"updates": {"confidentialityYears": 101}},
+        {"termUpdates": [{"term": "x" * 101, "value": "v"}]},
+        {"termUpdates": [{"term": "Fees", "value": "x" * 2001}]},
+    ],
+)
+def test_model_output_must_fit_the_request_limits(turn):
+    # A value the model returns is sent back next turn; one over the limit would
+    # make every later request fail with 422, so it is rejected up front.
+    base = {"reply": "ok", "document": None, "updates": {}, "termUpdates": []}
+    with pytest.raises(ValidationError):
+        ChatTurn.model_validate({**base, **turn})
 
 
 live = pytest.mark.skipif(not os.environ.get("OPENROUTER_API_KEY"), reason="OPENROUTER_API_KEY not set")

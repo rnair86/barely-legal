@@ -11,28 +11,34 @@ from .documents import DOCUMENTS, NDA_ID
 MODEL = "openrouter/openai/gpt-oss-120b"
 EXTRA_BODY = {"provider": {"order": ["cerebras"]}}
 
+# Limits shared by the model's output and the client's request: a value the model
+# returns is sent back on the next turn, so it must pass the request limits too.
+Text = Annotated[str, Field(max_length=2000)]
+Years = Annotated[int, Field(ge=1, le=100)]
+Date = Annotated[str, Field(max_length=10)]
+
 # Field names mirror MndaValues in frontend/lib/mnda.ts.
 
 
 class PartyUpdate(BaseModel):
-    company: str | None = None
-    name: str | None = None
-    title: str | None = None
-    noticeAddress: str | None = None
+    company: Text | None = None
+    name: Text | None = None
+    title: Text | None = None
+    noticeAddress: Text | None = None
 
 
 class MndaUpdates(BaseModel):
     """Only the fields that changed this turn; everything else stays null."""
 
-    purpose: str | None = None
-    effectiveDate: str | None = None  # YYYY-MM-DD
+    purpose: Text | None = None
+    effectiveDate: Date | None = None  # YYYY-MM-DD
     mndaTerm: Literal["expires", "continues"] | None = None
-    mndaTermYears: int | None = None
+    mndaTermYears: Years | None = None
     confidentiality: Literal["years", "perpetuity"] | None = None
-    confidentialityYears: int | None = None
-    governingLaw: str | None = None
-    jurisdiction: str | None = None
-    modifications: str | None = None
+    confidentialityYears: Years | None = None
+    governingLaw: Text | None = None
+    jurisdiction: Text | None = None
+    modifications: Text | None = None
     party1: PartyUpdate | None = None
     party2: PartyUpdate | None = None
 
@@ -42,8 +48,8 @@ DocumentId = Literal[tuple(DOCUMENTS)]
 
 
 class TermUpdate(BaseModel):
-    term: str
-    value: str
+    term: Annotated[str, Field(max_length=100)]
+    value: Text
 
 
 class ChatTurn(BaseModel):
@@ -56,9 +62,6 @@ class ChatTurn(BaseModel):
     # Other documents: values for the document's terms that changed this turn.
     termUpdates: list[TermUpdate]
     reply: str
-
-
-Text = Annotated[str, Field(max_length=2000)]
 
 
 class Message(BaseModel):
@@ -77,11 +80,11 @@ class MndaValues(BaseModel):
     """Current document state sent by the client (typed so it is safe to put in the prompt)."""
 
     purpose: Text = ""
-    effectiveDate: Annotated[str, Field(max_length=10)] = ""
+    effectiveDate: Date = ""
     mndaTerm: Literal["expires", "continues"] = "expires"
-    mndaTermYears: Annotated[int, Field(ge=1, le=100)] = 1
+    mndaTermYears: Years = 1
     confidentiality: Literal["years", "perpetuity"] = "years"
-    confidentialityYears: Annotated[int, Field(ge=1, le=100)] = 1
+    confidentialityYears: Years = 1
     governingLaw: Text = ""
     jurisdiction: Text = ""
     modifications: Text = ""
@@ -139,7 +142,9 @@ def build_system_prompt(document: str | None, values: MndaValues, terms: dict[st
     if document == NDA_ID:
         prompt += f"Current values (JSON): {values.model_dump_json()}\n"
     elif document:
-        prompt += f"Current values (JSON): {json.dumps(terms)}\n"
+        # Drop values left over from a previously selected document.
+        relevant = {k: v for k, v in terms.items() if k in DOCUMENTS[document].terms}
+        prompt += f"Current values (JSON): {json.dumps(relevant)}\n"
     return prompt
 
 
