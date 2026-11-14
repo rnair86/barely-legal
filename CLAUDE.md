@@ -77,4 +77,9 @@ Done (BL-6): all catalog documents (11 types; the two NDA catalog entries are on
 - `ChatTurn` field order matters: `reply` is last so the model records data before confirming it (measured: first-turn recording went from 4/6 to 6/6).
 - The client sends its local date as `today` (required, YYYY-MM-DD) on every chat request, so "today" is right in the user's time zone.
 
-Not done: sign-in/sign-up UI, protected endpoints.
+Done (BL-7): multiple users and polish.
+- Frontend pages (static export, `trailingSlash: true`): `/signin`, `/signup`, `/dashboard` (saved documents: open, delete), `/new` (creator, `?id=` reopens a saved one). Token in localStorage (`lib/api.ts`); `AppShell` guards pages and shows the navbar and the draft/legal-review disclaimer, which is also on the document preview and downloads.
+- Backend: `saved_documents` table; `GET/POST /api/saved`, `GET/PUT/DELETE /api/saved/{id}`, scoped to the signed-in user. `/api/chat` now requires a JWT. Tokens carry a per-boot `boot` claim so tokens from before a restart (DB reset) are rejected.
+- Autosave: the creator saves chat, field values and terms after every turn, serialised through a promise chain.
+
+Not done: nothing planned.
