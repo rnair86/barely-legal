@@ -193,12 +193,6 @@ export type MndaUpdates = {
 } & { party1?: PartyUpdates | null; party2?: PartyUpdates | null };
 type PartyUpdates = { [K in keyof Party]?: string | null };
 
-/** Response of POST /api/chat. */
-export interface ChatTurn {
-  reply: string;
-  updates: MndaUpdates;
-}
-
 /** Overlay the non-null entries of `patch` onto `base`. */
 const merge = <T extends object>(base: T, patch: object = {}): T => ({
   ...base,

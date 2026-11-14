@@ -1,0 +1,81 @@
+/** Generic (non-NDA) document support: Key Terms cover page and chat-turn merging. */
+
+import { applyUpdates, cleanMarkup, type MndaUpdates, type MndaValues } from "./mnda";
+
+/** Mirrors backend `Document`. The NDA has `cover`; other documents have `terms`. */
+export interface Doc {
+  id: string;
+  name: string;
+  description: string;
+  body: string;
+  cover: string | null;
+  terms: string[];
+  /** The party terms (a subset of `terms`); the first two sign. */
+  parties: string[];
+}
+
+/** Everything the chat edits: the chosen document and its collected values. */
+export interface DocState {
+  doc: Doc | null;
+  /** Mutual NDA fields. */
+  values: MndaValues;
+  /** Values for the other documents' terms, keyed by term name. */
+  terms: Record<string, string>;
+}
+
+/** Response of POST /api/chat. */
+export interface ChatTurn {
+  reply: string;
+  document: string | null;
+  updates: MndaUpdates;
+  termUpdates: { term: string; value: string }[];
+}
+
+/** The user's local date as YYYY-MM-DD, sent so the AI resolves "today" in their time zone. */
+export function localToday(now = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/**
+ * Merge one chat turn's field updates into the state. `state.doc` must already be the
+ * document the turn applies to; term names are trimmed and ones it does not have are
+ * ignored, since they could never be shown.
+ */
+export function applyTurn(state: DocState, turn: ChatTurn): DocState {
+  const known = new Set(state.doc?.terms);
+  const terms = { ...state.terms };
+  for (const { term, value } of turn.termUpdates) {
+    const name = term.trim();
+    if (known.has(name) && value.trim()) terms[name] = value.trim();
+  }
+  return { ...state, values: applyUpdates(state.values, turn.updates), terms };
+}
+
+const cell = (text: string) => text.trim().replace(/\|/g, "\\|").replace(/\s*\n\s*/g, ", ");
+
+/** Cover page for a generic document: a Key Terms table and a signature block. */
+export function renderKeyTerms(doc: Doc, terms: Record<string, string>): string {
+  const value = (t: string) => cell(terms[t] ?? "") || `[${t}]`;
+  const rows = doc.terms.map((t) => `| ${t} | ${value(t)} |`);
+  const parties = doc.parties.slice(0, 2);
+  const sig = [
+    `|  | ${parties.map((p) => p.toUpperCase()).join(" | ")} |`,
+    `|:--- | ${parties.map(() => ":----:").join(" | ")} |`,
+    `| Company | ${parties.map(value).join(" | ")} |`,
+    ...["Signature", "Print Name", "Title", "Date"].map((l) => `| ${l} | ${parties.map(() => "").join(" | ")} |`),
+  ];
+  return [
+    `# ${doc.name}`,
+    "## Key Terms",
+    "The terms below are part of this agreement and are referred to throughout the Standard Terms that follow.",
+    ["| Term | Value |", "|:--- | :--- |", ...rows].join("\n"),
+    "## Signatures",
+    sig.join("\n"),
+  ].join("\n\n");
+}
+
+/** Template body as markdown: helper markup removed, lettered sub-items on their own lines. */
+export function prepareBody(body: string): string {
+  return cleanMarkup(body.replace(/\r\n/g, "\n")).replace(/\n(?=\s+[a-z]\. )/g, "  \n");
+}
