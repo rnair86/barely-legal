@@ -11,15 +11,16 @@ export const DISCLAIMER =
 /** Signed-in page frame: redirects to sign in without a token; navbar plus draft disclaimer. */
 export default function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
-  // localStorage exists only in the browser; the server snapshot renders nothing.
+  // localStorage exists only in the browser. The server/hydration snapshot is null
+  // (unknown), so a page load with a valid token is not redirected before it is read.
   const signedIn = useSyncExternalStore(
     () => () => {},
     () => !!getToken(),
-    () => false,
+    () => null,
   );
 
   useEffect(() => {
-    if (!signedIn) router.replace("/signin/");
+    if (signedIn === false) router.replace("/signin/");
   }, [signedIn, router]);
 
   if (!signedIn) return null;
