@@ -1,10 +1,13 @@
 """AI chat that gathers Mutual NDA fields, via LiteLLM -> OpenRouter -> Cerebras."""
 
+import json
 from datetime import date
 from typing import Annotated, Literal
 
 from litellm import completion
 from pydantic import BaseModel, Field
+
+from .documents import DOCUMENTS, NDA_ID
 
 MODEL = "openrouter/openai/gpt-oss-120b"
 EXTRA_BODY = {"provider": {"order": ["cerebras"]}}
@@ -35,9 +38,25 @@ class MndaUpdates(BaseModel):
     party2: PartyUpdate | None = None
 
 
+# Constrains the model to real document ids.
+DocumentId = Literal[tuple(DOCUMENTS)]
+
+
+class TermUpdate(BaseModel):
+    term: str
+    value: str
+
+
 class ChatTurn(BaseModel):
-    reply: str
+    # Field order matters: the model fills these in order, so the data is recorded
+    # first and `reply` can only confirm what was actually recorded.
+    # Set when the user's chosen document is clear (or changes); null to leave unchanged.
+    document: DocumentId | None = None
+    # Mutual NDA fields that changed this turn.
     updates: MndaUpdates
+    # Other documents: values for the document's terms that changed this turn.
+    termUpdates: list[TermUpdate]
+    reply: str
 
 
 Text = Annotated[str, Field(max_length=2000)]
@@ -71,10 +90,30 @@ class MndaValues(BaseModel):
     party2: PartyValues = PartyValues()
 
 
-SYSTEM_PROMPT = """You help a user draft a Mutual Non-Disclosure Agreement (Common Paper Mutual NDA) through friendly chat.
-Only the Mutual NDA is supported. If the user wants another document, say it is not available yet and offer the Mutual NDA.
+PROMPT_INTRO = """You help a user draft a legal agreement through friendly chat, using fixed Common Paper templates.
+Never rewrite the legal text; you only choose the document and collect its details.
 
-Fields to fill in (current values are given below as JSON):
+Supported documents (id: name - description). Fields to collect are given after "Terms:":
+{catalog}
+
+Choosing the document:
+- Work out what the user needs. When it is clear and supported, set `document` to its id.
+- If the user wants something we do not support, say plainly that we cannot generate it, then offer the closest supported document and ask if they want it. Do not set `document` until they agree.
+- If the need is unclear, ask a short question; companions such as the SLA, DPA and AI Addendum are meant to accompany the Cloud Service Agreement, but we draft one document at a time.
+
+Recording details:
+- Mutual NDA fields go in `updates` (leave `termUpdates` empty). Every other document's fields go in `termUpdates` as {{term, value}} pairs, using exactly that document's term names above (leave `updates` all null).
+- Party terms (Provider, Customer, Company, Partner) take the party's legal name. The user is usually the provider or the first party, unless they say otherwise.
+- Anything you confirm in `reply` MUST be recorded in the same turn. When you select a document, immediately record every detail the user has already given.
+- Also record anything the user said earlier in the conversation that is missing from the current values.
+- Never invent values. Resolve relative dates like "today" using today's date.
+
+Guiding the user:
+- Ask about a few related fields at a time, in plain language, most important first (parties, then key commercial terms). Do not interrogate.
+- If the user says to leave something blank or skip it, move on.
+- In `reply`, briefly confirm what you recorded and ask the next question. When the essentials are filled in, tell the user the document is ready to download.
+
+Mutual NDA fields:
 - purpose: how Confidential Information may be used
 - effectiveDate: YYYY-MM-DD
 - mndaTerm: "expires" (after mndaTermYears) or "continues" (until terminated)
@@ -83,20 +122,30 @@ Fields to fill in (current values are given below as JSON):
 - modifications: optional changes to the standard terms
 - party1 and party2: company, name, title, noticeAddress
 
-Rules:
-- Ask about a few related fields at a time, in plain language. Do not interrogate.
-- Put in `updates` only fields the user just gave or changed; leave all others null.
-- Never invent values the user has not given. Resolve relative dates like "today" using today's date.
-- In `reply`, briefly confirm what you recorded and ask the next question.
-  When everything is filled in, tell the user the document is ready to download.
-
 Today's date: {today}
-Current values (JSON): {values}
+Currently selected document: {document}
 """
 
 
-def run_chat(messages: list[Message], values: MndaValues) -> ChatTurn:
-    system = SYSTEM_PROMPT.format(today=date.today().isoformat(), values=values.model_dump_json())
+def _catalog() -> str:
+    lines = []
+    for d in DOCUMENTS.values():
+        terms = "the Mutual NDA fields below" if d.id == NDA_ID else json.dumps(d.terms)
+        lines.append(f"- {d.id}: {d.name} - {d.description} Terms: {terms}")
+    return "\n".join(lines)
+
+
+def build_system_prompt(document: str | None, values: MndaValues, terms: dict[str, str]) -> str:
+    prompt = PROMPT_INTRO.format(catalog=_catalog(), today=date.today().isoformat(), document=document or "none yet")
+    if document == NDA_ID:
+        prompt += f"Current values (JSON): {values.model_dump_json()}\n"
+    elif document:
+        prompt += f"Current values (JSON): {json.dumps(terms)}\n"
+    return prompt
+
+
+def run_chat(messages: list[Message], document: str | None, values: MndaValues, terms: dict[str, str]) -> ChatTurn:
+    system = build_system_prompt(document, values, terms)
     response = completion(
         model=MODEL,
         messages=[{"role": "system", "content": system}, *[m.model_dump() for m in messages]],

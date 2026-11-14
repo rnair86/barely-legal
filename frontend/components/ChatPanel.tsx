@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { applyUpdates, type ChatTurn, type MndaValues } from "@/lib/mnda";
+import { applyTurn, type ChatTurn, type Doc, type DocState } from "@/lib/documents";
 
 interface Message {
   role: "user" | "assistant";
@@ -9,17 +9,17 @@ interface Message {
 }
 
 interface Props {
-  values: MndaValues;
-  onValues: (values: MndaValues) => void;
+  state: DocState;
+  onState: (state: DocState) => void;
 }
 
 const GREETING: Message = {
   role: "assistant",
   content:
-    "Hi! I can help you draft a Mutual Non-Disclosure Agreement (the only document available right now). Tell me about the agreement, for example who the two parties are and what the purpose is, and I'll fill it in as we talk.",
+    "Hi! I can help you draft a legal agreement, such as an NDA, cloud service agreement, SLA, DPA or professional services agreement. Tell me what you need and I'll guide you through it, filling in the document as we talk.",
 };
 
-export default function ChatPanel({ values, onValues }: Props) {
+export default function ChatPanel({ state, onState }: Props) {
   const [messages, setMessages] = useState<Message[]>([GREETING]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -38,11 +38,22 @@ export default function ChatPanel({ values, onValues }: Props) {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history.slice(1), values }),
+        body: JSON.stringify({
+          messages: history.slice(1),
+          document: state.doc?.id ?? null,
+          values: state.values,
+          terms: state.terms,
+        }),
       });
       if (!res.ok) throw new Error(`Chat failed (${res.status})`);
       const data: ChatTurn = await res.json();
-      onValues(applyUpdates(values, data.updates));
+      let doc = state.doc;
+      if (data.document && data.document !== doc?.id) {
+        const docRes = await fetch(`/api/documents/${data.document}`);
+        if (!docRes.ok) throw new Error(`Document load failed (${docRes.status})`);
+        doc = (await docRes.json()) as Doc;
+      }
+      onState({ ...applyTurn(state, data), doc });
       setMessages([...history, { role: "assistant", content: data.reply }]);
     } catch {
       setMessages([

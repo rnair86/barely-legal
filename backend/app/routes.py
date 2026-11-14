@@ -1,10 +1,11 @@
 import logging
 import sqlite3
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
-from . import auth, chat, db
+from . import auth, chat, db, documents
 
 router = APIRouter(prefix="/api")
 
@@ -54,13 +55,27 @@ def signin(creds: Credentials) -> TokenResponse:
 
 class ChatRequest(BaseModel):
     messages: list[chat.Message] = Field(min_length=1, max_length=50)
-    values: chat.MndaValues
+    document: chat.DocumentId | None = None
+    values: chat.MndaValues = chat.MndaValues()
+    terms: Annotated[dict[Annotated[str, Field(max_length=100)], chat.Text], Field(max_length=50)] = {}
 
 
 @router.post("/chat")
 def chat_turn(req: ChatRequest) -> chat.ChatTurn:
     try:
-        return chat.run_chat(req.messages, req.values)
+        return chat.run_chat(req.messages, req.document, req.values, req.terms)
     except Exception as e:
         logging.exception("Chat LLM call failed")
         raise HTTPException(502, "The AI service failed. Please try again.") from e
+
+
+@router.get("/documents")
+def list_documents() -> list[dict]:
+    return [{"id": d.id, "name": d.name, "description": d.description} for d in documents.DOCUMENTS.values()]
+
+
+@router.get("/documents/{doc_id}")
+def get_document(doc_id: str) -> documents.Document:
+    if doc_id not in documents.DOCUMENTS:
+        raise HTTPException(404, "Unknown document")
+    return documents.DOCUMENTS[doc_id]
