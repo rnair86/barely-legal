@@ -10,6 +10,8 @@ export interface Doc {
   body: string;
   cover: string | null;
   terms: string[];
+  /** The party terms (a subset of `terms`); the first two sign. */
+  parties: string[];
 }
 
 /** Everything the chat edits: the chosen document and its collected values. */
@@ -29,7 +31,11 @@ export interface ChatTurn {
   termUpdates: { term: string; value: string }[];
 }
 
-const PARTY_TERMS = ["Provider", "Customer", "Company", "Partner"];
+/** The user's local date as YYYY-MM-DD, sent so the AI resolves "today" in their time zone. */
+export function localToday(now = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
 
 /** Merge one chat turn's field updates into the state (the document itself is fetched separately). */
 export function applyTurn(state: DocState, turn: ChatTurn): DocState {
@@ -46,7 +52,7 @@ const cell = (text: string) => text.trim().replace(/\|/g, "\\|").replace(/\s*\n\
 export function renderKeyTerms(doc: Doc, terms: Record<string, string>): string {
   const value = (t: string) => cell(terms[t] ?? "") || `[${t}]`;
   const rows = doc.terms.map((t) => `| ${t} | ${value(t)} |`);
-  const parties = doc.terms.filter((t) => PARTY_TERMS.includes(t)).slice(0, 2);
+  const parties = doc.parties.slice(0, 2);
   const sig = [
     `|  | ${parties.map((p) => p.toUpperCase()).join(" | ")} |`,
     `|:--- | ${parties.map(() => ":----:").join(" | ")} |`,
@@ -66,9 +72,4 @@ export function renderKeyTerms(doc: Doc, terms: Record<string, string>): string 
 /** Template body as markdown: helper markup removed, lettered sub-items on their own lines. */
 export function prepareBody(body: string): string {
   return cleanMarkup(body.replace(/\r\n/g, "\n")).replace(/\n(?=\s+[a-z]\. )/g, "  \n");
-}
-
-/** The complete document as a single markdown string (for download). */
-export function buildGenericDocument(doc: Doc, terms: Record<string, string>): string {
-  return `${renderKeyTerms(doc, terms)}\n\n${prepareBody(doc.body).trimEnd()}\n`;
 }

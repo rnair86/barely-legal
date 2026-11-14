@@ -27,6 +27,14 @@ def test_every_other_document_has_terms_and_a_body():
             assert doc.terms, doc.id
 
 
+def test_parties_are_the_party_terms_and_lead_the_terms():
+    for doc in DOCUMENTS.values():
+        if doc.id == NDA_ID:
+            continue
+        assert len(doc.parties) >= 2, doc.id
+        assert doc.terms[: len(doc.parties)] == doc.parties
+
+
 def test_extract_terms_orders_parties_first_and_merges_plurals():
     body = (
         '<span class="orderform_link">Fees</span> <span class="coverpage_link">Customer</span> '

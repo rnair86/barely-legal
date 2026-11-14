@@ -4,8 +4,8 @@ import { useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import ChatPanel from "@/components/ChatPanel";
-import { buildGenericDocument, prepareBody, renderKeyTerms, type DocState } from "@/lib/documents";
-import { buildDocument, defaultValues, renderCoverPage, renderStandardTerms } from "@/lib/mnda";
+import { prepareBody, renderKeyTerms, type DocState } from "@/lib/documents";
+import { defaultValues, renderCoverPage, renderStandardTerms } from "@/lib/mnda";
 
 const initialState = (): DocState => ({ doc: null, values: defaultValues(), terms: {} });
 
@@ -22,21 +22,13 @@ function download(filename: string, content: string, type: string) {
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-/** Cover and body markdown for the preview, plus the full text for download. */
+/** Cover and body markdown of the current document; the download is these two joined. */
 function render({ doc, values, terms }: DocState) {
   if (!doc) return null;
   if (doc.cover) {
-    return {
-      cover: renderCoverPage(doc.cover, values),
-      body: renderStandardTerms(doc.body),
-      full: buildDocument(doc.cover, doc.body, values),
-    };
+    return { cover: renderCoverPage(doc.cover, values), body: renderStandardTerms(doc.body) };
   }
-  return {
-    cover: renderKeyTerms(doc, terms),
-    body: prepareBody(doc.body),
-    full: buildGenericDocument(doc, terms),
-  };
+  return { cover: renderKeyTerms(doc, terms), body: prepareBody(doc.body) };
 }
 
 export default function DocumentCreator() {
@@ -64,7 +56,9 @@ export default function DocumentCreator() {
             <div className="no-print flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                onClick={() => download(`${state.doc!.id}.md`, rendered.full, "text/markdown")}
+                onClick={() =>
+                  download(`${state.doc!.id}.md`, `${rendered.cover.trimEnd()}\n\n${rendered.body.trimEnd()}\n`, "text/markdown")
+                }
                 className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
               >
                 Download Markdown

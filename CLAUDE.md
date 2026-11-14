@@ -61,7 +61,7 @@ Backend available at http://localhost:8000
 Done (BL-4, PR #8):
 - `backend/`: uv + FastAPI (`app/main.py`, `routes.py`, `auth.py`, `db.py`). Endpoints: `GET /api/health`, `POST /api/auth/signup`, `POST /api/auth/signin` (argon2 hashing, JWT, email normalised, password min 8 chars). Set `JWT_SECRET` in `.env`, otherwise a random secret is used per start.
 - SQLite `users` table at `/tmp/app.db` (`DB_PATH`), deleted and recreated on every startup.
-- `frontend/`: Next.js with `output: "export"` (so `cacheComponents` and `partialPrefetching` are disabled). Templates are read from `templates/` at build time. FastAPI serves `frontend/out` from `/app/static`.
+- `frontend/`: Next.js with `output: "export"` (so `cacheComponents` and `partialPrefetching` are disabled). Templates are served by the backend (`/api/documents`), not read by the frontend. FastAPI serves `frontend/out` from `/app/static`.
 - `Dockerfile` (multi-stage, build context is the repo root), `docker-compose.yml`, `scripts/` start and stop for mac, linux, windows. Mac and linux scripts are untested.
 - Tests: `cd backend && uv run pytest`, `cd frontend && npm test`.
 
@@ -75,6 +75,6 @@ Done (BL-6): all catalog documents (11 types; the two NDA catalog entries are on
 - Only the NDA has a cover template and typed fields. Other documents' fields are auto-extracted from the template's `*_link` spans (parties first, plurals merged) and collected as `termUpdates` ({term, value}); the frontend renders a generic Key Terms table and signature block (`lib/documents.ts`) before the unmodified template body.
 - Chat: `ChatTurn` also returns `document` (an id from the catalog, or null). The prompt lists every document's terms, so the turn that selects a document can already record details. Unsupported requests are declined with the closest document offered. One document per session; "Start new document" reloads the page.
 - `ChatTurn` field order matters: `reply` is last so the model records data before confirming it (measured: first-turn recording went from 4/6 to 6/6).
-- Known limitation: the model resolves "today" using the server (UTC) date, which can differ from the user's local date.
+- The client sends its local date as `today` (required, YYYY-MM-DD) on every chat request, so "today" is right in the user's time zone.
 
 Not done: sign-in/sign-up UI, protected endpoints.

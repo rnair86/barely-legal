@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { applyTurn, type ChatTurn, type Doc, type DocState } from "@/lib/documents";
+import { applyTurn, localToday, type ChatTurn, type Doc, type DocState } from "@/lib/documents";
 
 interface Message {
   role: "user" | "assistant";
@@ -43,6 +43,7 @@ export default function ChatPanel({ state, onState }: Props) {
           document: state.doc?.id ?? null,
           values: state.values,
           terms: state.terms,
+          today: localToday(),
         }),
       });
       if (!res.ok) throw new Error(`Chat failed (${res.status})`);

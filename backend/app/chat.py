@@ -1,7 +1,6 @@
-"""AI chat that gathers Mutual NDA fields, via LiteLLM -> OpenRouter -> Cerebras."""
+"""AI chat that picks a document and gathers its fields, via LiteLLM -> OpenRouter -> Cerebras."""
 
 import json
-from datetime import date
 from typing import Annotated, Literal
 
 from litellm import completion
@@ -135,8 +134,8 @@ def _catalog() -> str:
     return "\n".join(lines)
 
 
-def build_system_prompt(document: str | None, values: MndaValues, terms: dict[str, str]) -> str:
-    prompt = PROMPT_INTRO.format(catalog=_catalog(), today=date.today().isoformat(), document=document or "none yet")
+def build_system_prompt(document: str | None, values: MndaValues, terms: dict[str, str], today: str) -> str:
+    prompt = PROMPT_INTRO.format(catalog=_catalog(), today=today, document=document or "none yet")
     if document == NDA_ID:
         prompt += f"Current values (JSON): {values.model_dump_json()}\n"
     elif document:
@@ -144,8 +143,10 @@ def build_system_prompt(document: str | None, values: MndaValues, terms: dict[st
     return prompt
 
 
-def run_chat(messages: list[Message], document: str | None, values: MndaValues, terms: dict[str, str]) -> ChatTurn:
-    system = build_system_prompt(document, values, terms)
+def run_chat(
+    messages: list[Message], document: str | None, values: MndaValues, terms: dict[str, str], today: str
+) -> ChatTurn:
+    system = build_system_prompt(document, values, terms, today)
     response = completion(
         model=MODEL,
         messages=[{"role": "system", "content": system}, *[m.model_dump() for m in messages]],

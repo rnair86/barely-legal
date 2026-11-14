@@ -58,12 +58,14 @@ class ChatRequest(BaseModel):
     document: chat.DocumentId | None = None
     values: chat.MndaValues = chat.MndaValues()
     terms: Annotated[dict[Annotated[str, Field(max_length=100)], chat.Text], Field(max_length=50)] = {}
+    # The user's local date (YYYY-MM-DD), so "today" is right in their time zone.
+    today: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
 
 
 @router.post("/chat")
 def chat_turn(req: ChatRequest) -> chat.ChatTurn:
     try:
-        return chat.run_chat(req.messages, req.document, req.values, req.terms)
+        return chat.run_chat(req.messages, req.document, req.values, req.terms, req.today)
     except Exception as e:
         logging.exception("Chat LLM call failed")
         raise HTTPException(502, "The AI service failed. Please try again.") from e

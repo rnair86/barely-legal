@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyTurn,
-  buildGenericDocument,
+  localToday,
   prepareBody,
   renderKeyTerms,
   type ChatTurn,
@@ -16,6 +16,7 @@ const doc: Doc = {
   description: "",
   cover: null,
   terms: ["Provider", "Customer", "Fees"],
+  parties: ["Provider", "Customer"],
   body: '1. <span class="header_2">Service</span>\n    1. Text\n        a. First\n        b. Second\n',
 };
 
@@ -61,16 +62,18 @@ describe("renderKeyTerms", () => {
   });
 });
 
-describe("prepareBody / buildGenericDocument", () => {
+describe("prepareBody", () => {
   it("strips helper spans and puts lettered items on their own lines", () => {
     const out = prepareBody(doc.body);
     expect(out).not.toContain("<span");
     expect(out).toContain("a. First  \n        b. Second");
   });
+});
 
-  it("builds cover followed by the body", () => {
-    const full = buildGenericDocument(doc, {});
-    expect(full.indexOf("## Key Terms")).toBeLessThan(full.indexOf("First"));
-    expect(full.endsWith("\n")).toBe(true);
+describe("localToday", () => {
+  it("formats the local calendar date, not the UTC one", () => {
+    // Local time 21:30 on 13 Nov: in UTC-5 this is already 14 Nov in UTC.
+    expect(localToday(new Date(2026, 10, 13, 21, 30))).toBe("2026-11-13");
+    expect(localToday(new Date(2027, 0, 5, 0, 5))).toBe("2027-01-05");
   });
 });

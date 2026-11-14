@@ -29,6 +29,8 @@ class Document(BaseModel):
     cover: str | None = None
     # Other documents: fields to collect, extracted from the template's linked terms.
     terms: list[str] = []
+    # The party terms (a subset of `terms`, first two are the signatories).
+    parties: list[str] = []
 
 
 def extract_terms(body: str) -> list[str]:
@@ -65,12 +67,14 @@ def load_documents() -> dict[str, Document]:
             )
         else:
             doc_id = filename.removesuffix(".md").lower()
+            terms = extract_terms(body)
             docs[doc_id] = Document(
                 id=doc_id,
                 name=entry["name"],
                 description=entry["description"],
                 body=body,
-                terms=extract_terms(body),
+                terms=terms,
+                parties=[t for t in terms if t in PARTY_TERMS],
             )
     return docs
 
