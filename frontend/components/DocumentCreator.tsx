@@ -1,11 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import ChatPanel from "@/components/ChatPanel";
+import ChatPanel, { GREETING, type Message } from "@/components/ChatPanel";
+import { api } from "@/lib/api";
 import { prepareBody, renderKeyTerms, type DocState } from "@/lib/documents";
 import { defaultValues, renderCoverPage, renderStandardTerms } from "@/lib/mnda";
+
+const DRAFT_NOTICE = "*DRAFT: this document is subject to legal review and is not legal advice.*";
 
 const initialState = (): DocState => ({ doc: null, values: defaultValues(), terms: {} });
 
@@ -25,24 +28,77 @@ function download(filename: string, content: string, type: string) {
 /** Cover and body markdown of the current document; the download is these two joined. */
 function render({ doc, values, terms }: DocState) {
   if (!doc) return null;
+  const draft = (cover: string) => `${DRAFT_NOTICE}
+
+${cover}`;
   if (doc.cover) {
-    return { cover: renderCoverPage(doc.cover, values), body: renderStandardTerms(doc.body) };
+    return { cover: draft(renderCoverPage(doc.cover, values)), body: renderStandardTerms(doc.body) };
   }
-  return { cover: renderKeyTerms(doc, terms), body: prepareBody(doc.body) };
+  return { cover: draft(renderKeyTerms(doc, terms)), body: prepareBody(doc.body) };
 }
 
-export default function DocumentCreator() {
+/** `savedId` is an existing saved document to reopen; null starts a new one. */
+export default function DocumentCreator({ savedId }: { savedId: number | null }) {
   const [state, setState] = useState<DocState>(initialState);
+  const [messages, setMessages] = useState<Message[]>([GREETING]);
+  const [loadError, setLoadError] = useState(false);
+  const [loaded, setLoaded] = useState(savedId === null);
+  // Id of this document on the server; set on the first save of a new document.
+  const id = useRef(savedId);
+  // Saves run one after another so a new document is created once and updates stay in order.
+  const saves = useRef(Promise.resolve());
   const rendered = useMemo(() => render(state), [state]);
+
+  // Reopen a saved document: the template comes from the catalog, the rest from the saved state.
+  useEffect(() => {
+    if (savedId === null) return;
+    (async () => {
+      const res = await api(`/api/saved/${savedId}`);
+      if (!res.ok) return setLoadError(true);
+      const saved = await res.json();
+      const docRes = await fetch(`/api/documents/${saved.doc_id}`);
+      if (!docRes.ok) return setLoadError(true);
+      setState({ doc: await docRes.json(), values: saved.state.values, terms: saved.state.terms });
+      setMessages(saved.state.messages);
+      setLoaded(true);
+    })();
+  }, [savedId]);
+
+  /** Apply a finished chat turn and autosave once a document has been chosen. */
+  async function onTurn(next: DocState, nextMessages: Message[]) {
+    setState(next);
+    setMessages(nextMessages);
+    if (!next.doc) return;
+    const body = JSON.stringify({
+      doc_id: next.doc.id,
+      state: { values: next.values, terms: next.terms, messages: nextMessages },
+    });
+    saves.current = saves.current.then(async () => {
+      const res =
+        id.current === null
+          ? await api("/api/saved", { method: "POST", body })
+          : await api(`/api/saved/${id.current}`, { method: "PUT", body });
+      if (res.ok && id.current === null) {
+        id.current = (await res.json()).id;
+        window.history.replaceState(null, "", `/new/?id=${id.current}`);
+      }
+    }).catch(() => {}); // a failed save must not block later ones; the next turn saves the full state again
+  }
+
+  if (loadError) {
+    return <p className="mx-auto max-w-7xl px-4 py-8 text-sm text-red-600">This document could not be loaded.</p>;
+  }
+
+  if (!loaded) return <p className="mx-auto max-w-7xl px-4 py-8 text-sm text-[#888888]">Loading...</p>;
 
   return (
     <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-8 lg:grid-cols-[26rem_minmax(0,1fr)]">
       <div className="space-y-3">
-        <ChatPanel state={state} onState={setState} />
+        <ChatPanel state={state} messages={messages} onTurn={onTurn} />
         {state.doc && (
           <button
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={() => window.location.assign("/new/")}
             className="no-print text-sm text-[#209dd7] underline"
           >
             Start new document

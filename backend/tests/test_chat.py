@@ -20,6 +20,8 @@ def client(tmp_path, monkeypatch):
     from app.main import app
 
     with TestClient(app) as c:
+        token = c.post("/api/auth/signup", json={"email": "a@example.com", "password": "password123"}).json()["token"]
+        c.headers["Authorization"] = f"Bearer {token}"
         yield c
 
 
@@ -182,3 +184,8 @@ def test_live_collects_terms_for_selected_document():
     got = {u.term: u.value for u in turn.termUpdates}
     assert "acme" in got.get("Provider", "").lower()
     assert "globex" in got.get("Customer", "").lower()
+
+
+def test_chat_requires_sign_in(client):
+    client.headers.pop("Authorization")
+    assert client.post("/api/chat", json=BODY).status_code == 401

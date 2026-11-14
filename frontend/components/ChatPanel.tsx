@@ -1,26 +1,28 @@
 "use client";
 
 import { useState } from "react";
+import { api } from "@/lib/api";
 import { applyTurn, localToday, type ChatTurn, type Doc, type DocState } from "@/lib/documents";
 
-interface Message {
+export interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
 interface Props {
   state: DocState;
-  onState: (state: DocState) => void;
+  messages: Message[];
+  /** Called after every completed turn (success or failure) with the new state and chat. */
+  onTurn: (state: DocState, messages: Message[]) => void;
 }
 
-const GREETING: Message = {
+export const GREETING: Message = {
   role: "assistant",
   content:
     "Hi! I can help you draft a legal agreement, such as an NDA, cloud service agreement, SLA, DPA or professional services agreement. Tell me what you need and I'll guide you through it, filling in the document as we talk.",
 };
 
-export default function ChatPanel({ state, onState }: Props) {
-  const [messages, setMessages] = useState<Message[]>([GREETING]);
+export default function ChatPanel({ state, messages, onTurn }: Props) {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -30,14 +32,13 @@ export default function ChatPanel({ state, onState }: Props) {
     if (!text || busy) return;
 
     const history = [...messages, { role: "user" as const, content: text }];
-    setMessages(history);
+    onTurn(state, history);
     setInput("");
     setBusy(true);
     try {
       // The greeting is local UI only; the model gets the real conversation.
-      const res = await fetch("/api/chat", {
+      const res = await api("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: history.slice(1),
           document: state.doc?.id ?? null,
@@ -54,10 +55,9 @@ export default function ChatPanel({ state, onState }: Props) {
         if (!docRes.ok) throw new Error(`Document load failed (${docRes.status})`);
         doc = (await docRes.json()) as Doc;
       }
-      onState(applyTurn({ ...state, doc }, data));
-      setMessages([...history, { role: "assistant", content: data.reply }]);
+      onTurn(applyTurn({ ...state, doc }, data), [...history, { role: "assistant", content: data.reply }]);
     } catch {
-      setMessages([
+      onTurn(state, [
         ...history,
         { role: "assistant", content: "Sorry, something went wrong. Please try sending that again." },
       ]);
