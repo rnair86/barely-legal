@@ -82,7 +82,7 @@ export default function DocumentCreator({ savedId }: { savedId: number | null })
         id.current = (await res.json()).id;
         window.history.replaceState(null, "", `/new/?id=${id.current}`);
       }
-    });
+    }).catch(() => {}); // a failed save must not block later ones; the next turn saves the full state again
   }
 
   if (loadError) {

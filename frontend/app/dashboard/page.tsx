@@ -39,7 +39,7 @@ export default function Dashboard() {
               <li key={d.id} className="flex items-center justify-between gap-4 px-4 py-3">
                 <div>
                   <p className="font-medium text-[#032147]">{d.name}</p>
-                  <p className="text-xs text-[#888888]">Updated {new Date(d.updated_at + "Z").toLocaleString()}</p>
+                  <p className="text-xs text-[#888888]">Updated {new Date(d.updated_at.replace(" ", "T") + "Z").toLocaleString()}</p>
                 </div>
                 <div className="flex items-center gap-4 text-sm">
                   <Link href={`/new/?id=${d.id}`} className="text-[#209dd7] hover:underline">
